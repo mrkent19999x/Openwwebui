@@ -1,0 +1,266 @@
+version: '3.8'
+
+# Production Setup với Load Balancing & High Availability
+# Cấu hình này dành cho môi trường production với nhiều users
+
+services:
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: open-webui-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - open-webui-1
+      - open-webui-2
+      - open-webui-3
+    networks:
+      - open-webui-network
+
+  # Open WebUI Instance 1
+  open-webui-1:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui-1
+    restart: always
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      - WEBUI_URL=${WEBUI_URL:-http://localhost}
+      - WEBUI_NAME=${WEBUI_NAME:-Open WebUI}
+      - PORT=8080
+      - ENV=prod
+      
+      # Security
+      - WEBUI_AUTH=True
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - JWT_EXPIRES_IN=4w
+      - ENABLE_SIGNUP=${ENABLE_SIGNUP:-True}
+      - DEFAULT_USER_ROLE=pending
+      
+      # Ollama
+      - ENABLE_OLLAMA_API=True
+      - OLLAMA_BASE_URLS=${OLLAMA_BASE_URLS:-http://ollama-1:11434;http://ollama-2:11434}
+      
+      # OpenAI
+      - ENABLE_OPENAI_API=${ENABLE_OPENAI_API:-True}
+      - OPENAI_API_BASE_URL=${OPENAI_API_BASE_URL}
+      - OPENAI_API_KEYS=${OPENAI_API_KEYS}
+      
+      # Performance - Production Settings
+      - ENABLE_REALTIME_CHAT_SAVE=False
+      - CHAT_RESPONSE_STREAM_DELTA_CHUNK_SIZE=10
+      - THREAD_POOL_SIZE=100
+      - MODELS_CACHE_TTL=60
+      - AIOHTTP_CLIENT_TIMEOUT=600
+      
+      # Redis WebSocket
+      - ENABLE_WEBSOCKET_SUPPORT=True
+      - REDIS_URL=redis://redis:6379
+      
+      # Vector DB
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant:6333
+      - ENABLE_QDRANT_MULTITENANCY_MODE=True
+      
+      # CORS
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-*}
+      
+    networks:
+      - open-webui-network
+    depends_on:
+      - redis
+      - qdrant
+      - ollama-1
+
+  # Open WebUI Instance 2
+  open-webui-2:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui-2
+    restart: always
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      - WEBUI_URL=${WEBUI_URL:-http://localhost}
+      - WEBUI_NAME=${WEBUI_NAME:-Open WebUI}
+      - PORT=8080
+      - ENV=prod
+      - WEBUI_AUTH=True
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - JWT_EXPIRES_IN=4w
+      - ENABLE_SIGNUP=${ENABLE_SIGNUP:-True}
+      - DEFAULT_USER_ROLE=pending
+      - ENABLE_OLLAMA_API=True
+      - OLLAMA_BASE_URLS=${OLLAMA_BASE_URLS:-http://ollama-1:11434;http://ollama-2:11434}
+      - ENABLE_OPENAI_API=${ENABLE_OPENAI_API:-True}
+      - OPENAI_API_BASE_URL=${OPENAI_API_BASE_URL}
+      - OPENAI_API_KEYS=${OPENAI_API_KEYS}
+      - ENABLE_REALTIME_CHAT_SAVE=False
+      - CHAT_RESPONSE_STREAM_DELTA_CHUNK_SIZE=10
+      - THREAD_POOL_SIZE=100
+      - MODELS_CACHE_TTL=60
+      - AIOHTTP_CLIENT_TIMEOUT=600
+      - ENABLE_WEBSOCKET_SUPPORT=True
+      - REDIS_URL=redis://redis:6379
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant:6333
+      - ENABLE_QDRANT_MULTITENANCY_MODE=True
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-*}
+    networks:
+      - open-webui-network
+    depends_on:
+      - redis
+      - qdrant
+      - ollama-1
+
+  # Open WebUI Instance 3
+  open-webui-3:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui-3
+    restart: always
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      - WEBUI_URL=${WEBUI_URL:-http://localhost}
+      - WEBUI_NAME=${WEBUI_NAME:-Open WebUI}
+      - PORT=8080
+      - ENV=prod
+      - WEBUI_AUTH=True
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - JWT_EXPIRES_IN=4w
+      - ENABLE_SIGNUP=${ENABLE_SIGNUP:-True}
+      - DEFAULT_USER_ROLE=pending
+      - ENABLE_OLLAMA_API=True
+      - OLLAMA_BASE_URLS=${OLLAMA_BASE_URLS:-http://ollama-1:11434;http://ollama-2:11434}
+      - ENABLE_OPENAI_API=${ENABLE_OPENAI_API:-True}
+      - OPENAI_API_BASE_URL=${OPENAI_API_BASE_URL}
+      - OPENAI_API_KEYS=${OPENAI_API_KEYS}
+      - ENABLE_REALTIME_CHAT_SAVE=False
+      - CHAT_RESPONSE_STREAM_DELTA_CHUNK_SIZE=10
+      - THREAD_POOL_SIZE=100
+      - MODELS_CACHE_TTL=60
+      - AIOHTTP_CLIENT_TIMEOUT=600
+      - ENABLE_WEBSOCKET_SUPPORT=True
+      - REDIS_URL=redis://redis:6379
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant:6333
+      - ENABLE_QDRANT_MULTITENANCY_MODE=True
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-*}
+    networks:
+      - open-webui-network
+    depends_on:
+      - redis
+      - qdrant
+      - ollama-1
+
+  # Ollama Instance 1
+  ollama-1:
+    image: ollama/ollama:latest
+    container_name: ollama-1
+    restart: always
+    volumes:
+      - ollama-1-data:/root/.ollama
+    networks:
+      - open-webui-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Ollama Instance 2
+  ollama-2:
+    image: ollama/ollama:latest
+    container_name: ollama-2
+    restart: always
+    volumes:
+      - ollama-2-data:/root/.ollama
+    networks:
+      - open-webui-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Redis for WebSocket & Caching
+  redis:
+    image: redis:7-alpine
+    container_name: open-webui-redis
+    restart: always
+    volumes:
+      - redis-data:/data
+    networks:
+      - open-webui-network
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - open-webui-network
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # PostgreSQL (Optional - for PGVector)
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: open-webui-postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=openwebui
+      - POSTGRES_USER=${POSTGRES_USER:-openwebui}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - open-webui-network
+    profiles:
+      - with-postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openwebui"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  open-webui-data:
+    driver: local
+  ollama-1-data:
+    driver: local
+  ollama-2-data:
+    driver: local
+  redis-data:
+    driver: local
+  qdrant-data:
+    driver: local
+  postgres-data:
+    driver: local
+
+networks:
+  open-webui-network:
+    driver: bridge

@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # Open WebUI Service
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: always
+    ports:
+      - "${WEBUI_PORT:-3000}:8080"
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      # Application Settings
+      - WEBUI_URL=${WEBUI_URL:-http://localhost:3000}
+      - WEBUI_NAME=${WEBUI_NAME:-Open WebUI}
+      - PORT=8080
+      - ENV=${ENV:-prod}
+      
+      # Authentication & Security
+      - WEBUI_AUTH=${WEBUI_AUTH:-True}
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-4w}
+      - ENABLE_SIGNUP=${ENABLE_SIGNUP:-True}
+      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-pending}
+      
+      # CORS Configuration
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-*}
+      
+      # Ollama Configuration
+      - ENABLE_OLLAMA_API=${ENABLE_OLLAMA_API:-True}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      
+      # OpenAI Configuration
+      - ENABLE_OPENAI_API=${ENABLE_OPENAI_API:-True}
+      - OPENAI_API_BASE_URL=${OPENAI_API_BASE_URL:-https://api.openai.com/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Performance Settings - REALTIME
+      - ENABLE_REALTIME_CHAT_SAVE=${ENABLE_REALTIME_CHAT_SAVE:-False}
+      - CHAT_RESPONSE_STREAM_DELTA_CHUNK_SIZE=${CHAT_RESPONSE_STREAM_DELTA_CHUNK_SIZE:-1}
+      - THREAD_POOL_SIZE=${THREAD_POOL_SIZE:-0}
+      - MODELS_CACHE_TTL=${MODELS_CACHE_TTL:-1}
+      
+      # Timeout Settings
+      - AIOHTTP_CLIENT_TIMEOUT=${AIOHTTP_CLIENT_TIMEOUT:-300}
+      - AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST=${AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST:-10}
+      
+      # WebSocket & Redis (for realtime features)
+      - ENABLE_WEBSOCKET_SUPPORT=${ENABLE_WEBSOCKET_SUPPORT:-False}
+      
+      # Vector Database
+      - VECTOR_DB=${VECTOR_DB:-chroma}
+      - CHROMA_TENANT=${CHROMA_TENANT:-default_tenant}
+      - CHROMA_DATABASE=${CHROMA_DATABASE:-default_database}
+      
+      # RAG Settings
+      - ENABLE_RAG_WEB_SEARCH=${ENABLE_RAG_WEB_SEARCH:-True}
+      - ENABLE_WEB_LOADER_SSL_VERIFICATION=${ENABLE_WEB_LOADER_SSL_VERIFICATION:-True}
+      
+      # Features
+      - ENABLE_TITLE_GENERATION=${ENABLE_TITLE_GENERATION:-True}
+      - ENABLE_FOLLOW_UP_GENERATION=${ENABLE_FOLLOW_UP_GENERATION:-True}
+      - ENABLE_MESSAGE_RATING=${ENABLE_MESSAGE_RATING:-True}
+      - ENABLE_COMMUNITY_SHARING=${ENABLE_COMMUNITY_SHARING:-True}
+      
+      # Admin Settings
+      - ENABLE_ADMIN_EXPORT=${ENABLE_ADMIN_EXPORT:-True}
+      - ENABLE_ADMIN_CHAT_ACCESS=${ENABLE_ADMIN_CHAT_ACCESS:-True}
+      - SHOW_ADMIN_DETAILS=${SHOW_ADMIN_DETAILS:-True}
+      
+      # Data Directory
+      - DATA_DIR=/app/backend/data
+      
+    networks:
+      - open-webui-network
+    depends_on:
+      - ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Ollama Service (optional, remove if using external Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: always
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - open-webui-network
+    # Uncomment for GPU support (NVIDIA)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # Redis Service (optional, for WebSocket load balancing)
+  redis:
+    image: redis:7-alpine
+    container_name: open-webui-redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - open-webui-network
+    command: redis-server --appendonly yes
+    profiles:
+      - with-redis
+
+  # ChromaDB Service (optional, for external vector DB)
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    restart: always
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=${CHROMA_TELEMETRY:-True}
+    networks:
+      - open-webui-network
+    profiles:
+      - with-chromadb
+
+volumes:
+  open-webui-data:
+    driver: local
+  ollama-data:
+    driver: local
+  redis-data:
+    driver: local
+  chromadb-data:
+    driver: local
+
+networks:
+  open-webui-network:
+    driver: bridge
