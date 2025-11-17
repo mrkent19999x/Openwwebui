@@ -1,0 +1,31 @@
+{
+  email {env.EMAIL}
+}
+
+:443 {
+  tls internal
+  encode gzip
+
+  @webui {
+    path /
+  }
+  reverse_proxy @webui webui:3000 {
+    header_up X-Forwarded-Proto https
+  }
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Access-Control-Allow-Origin "*"
+    Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers "*"
+  }
+
+  # Increase upload limits for images/PDF
+  request_body {
+    max_size 100MB
+  }
+}
+
+:80 {
+  redir https://{host}{uri}
+}

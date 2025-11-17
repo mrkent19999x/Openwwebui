@@ -1,0 +1,25 @@
+profiles:
+  lightning:
+    intent: ["qa", "chat", "faq"]
+    max_tokens: 512
+    providers: ["groq", "openrouter", "gemini"]
+    latency_sla_ms: 800
+  pro:
+    intent: ["research", "report", "code"]
+    max_tokens: 4096
+    providers: ["minimax", "anthropic", "openai", "openrouter"]
+    latency_sla_ms: 2000
+  vision:
+    intent: ["image", "pdf", "screenshot"]
+    max_tokens: 2048
+    providers: ["gemini_vision", "minimax_vision", "llava_cloud"]
+    latency_sla_ms: 1500
+  code:
+    intent: ["code", "edit", "pr"]
+    max_tokens: 2048
+    providers: ["minimax", "anthropic_code", "openai_code"]
+    latency_sla_ms: 1200
+fallback:
+  on_quota_exhausted: "next_provider"
+  on_timeout: "next_provider"
+  on_error: "next_provider"
